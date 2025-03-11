@@ -28,7 +28,7 @@ public class FirebaseUsuarios {
     }
 
     public void addRegistroCuenta(int id, String name, String email, String fecha_ingreso,
-                                  String password, String foto, String genero, String tipo,
+                                  String password, String fotoBase64, String genero, String tipo,
                                   OnRegistroCompleteListener listener) {
         Usuarios p = new Usuarios();
         p.setId(id);
@@ -36,14 +36,15 @@ public class FirebaseUsuarios {
         p.setEmail(email);
         p.setFecha_ingreso(fecha_ingreso);
         p.setGenero(genero);
-        p.setImagen(foto);
-        p.setPassword(password); // Nota: No es ideal guardar la contraseña aquí, Firebase Auth ya la maneja
+        p.setImagen(fotoBase64); // Imagen como Base64
         p.setTipo(tipo);
+        // No seteamos password, Firebase Auth lo maneja
 
         mAuth.createUserWithEmailAndPassword(email, password)
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful()) {
-                        // Registro exitoso en Authentication, ahora guarda en Realtime Database
+                        // Registro exitoso en Authentication
+                        String authUserId = mAuth.getCurrentUser().getUid(); // UID de Firebase Auth (no usado como clave aquí)
                         databaseReference.child("Usuarios").child(String.valueOf(p.getId())).setValue(p)
                                 .addOnCompleteListener(dbTask -> {
                                     if (dbTask.isSuccessful()) {

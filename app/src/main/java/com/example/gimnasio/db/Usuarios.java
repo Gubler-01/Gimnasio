@@ -2,7 +2,10 @@ package com.example.gimnasio.db;
 
 public class Usuarios {
     int id;
-    String nombre,fecha_ingreso,genero,email,password,imagen,tipo;
+    String nombre, fecha_ingreso, genero, email, imagen, tipo;
+
+    // Constructor vacío requerido por Firebase
+    public Usuarios() {}
 
     public int getId() {
         return id;
@@ -42,14 +45,6 @@ public class Usuarios {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public String getImagen() {

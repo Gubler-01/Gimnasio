@@ -8,6 +8,7 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.util.Base64;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -23,13 +24,9 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.example.gimnasio.db.FirebaseUsuarios;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Calendar;
-import java.util.UUID;
 
 public class SingUp extends AppCompatActivity {
 
@@ -62,7 +59,7 @@ public class SingUp extends AppCompatActivity {
         loginButton = findViewById(R.id.loginButton);
         signUpButton = findViewById(R.id.signUpButton);
 
-        // Configura los Spinners
+        // Configura los Spinners (sin cambios aquí)
         ArrayAdapter<CharSequence> generoAdapter = ArrayAdapter.createFromResource(this, R.array.sx, android.R.layout.simple_spinner_item);
         spinnerGenero = findViewById(R.id.spinnerGeneroUsuario);
         spinnerGenero.setAdapter(generoAdapter);
@@ -97,7 +94,7 @@ public class SingUp extends AppCompatActivity {
             }
         });
 
-        // Botón para capturar foto
+        // Botón para capturar foto (sin cambios)
         btnFoto.setOnClickListener(v -> {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.CAMERA}, 1);
@@ -106,7 +103,7 @@ public class SingUp extends AppCompatActivity {
             }
         });
 
-        // Botón para seleccionar fecha
+        // Botón para seleccionar fecha (sin cambios)
         imageButtonCalendario.setOnClickListener(v -> {
             final Calendar calendar = Calendar.getInstance();
             int year = calendar.get(Calendar.YEAR);
@@ -124,66 +121,12 @@ public class SingUp extends AppCompatActivity {
         // Botón de registrarse
         signUpButton.setOnClickListener(v -> registerUser());
 
-        // Botón de ir al login
+        // Botón de ir al login (sin cambios)
         loginButton.setOnClickListener(v -> {
             Intent intent = new Intent(SingUp.this, LogIn.class);
             startActivity(intent);
         });
     }
-
-    /*private void registerUser() {
-        String idText = editTextId.getText().toString().trim();
-        String nombre = editTextNombre.getText().toString().trim();
-        String email = editTextEmail.getText().toString().trim();
-        String password = editTextPassword.getText().toString().trim();
-        String fechaIngreso = editTextDate.getText().toString().trim();
-        String genero = spinnerGenero.getTag() != null ? spinnerGenero.getTag().toString() : "";
-        String tipo = spinnerTipo.getTag() != null ? spinnerTipo.getTag().toString() : "";
-
-        if (idText.isEmpty() || nombre.isEmpty() || email.isEmpty() || password.isEmpty() || fechaIngreso.isEmpty() || genero.isEmpty() || tipo.isEmpty()) {
-            Toast.makeText(this, "Por favor, completa todos los campos", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        int id = Integer.parseInt(idText);
-        Bitmap bitmap = ((BitmapDrawable) imageViewFoto.getDrawable()).getBitmap();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
-        byte[] data = baos.toByteArray();
-
-        // Subir imagen a Firebase Storage
-        FirebaseStorage storage = FirebaseStorage.getInstance();
-        StorageReference storageRef = storage.getReference();
-        String imagePath = "images/" + UUID.randomUUID().toString() + ".jpg";
-        StorageReference imageRef = storageRef.child(imagePath);
-
-        UploadTask uploadTask = imageRef.putBytes(data);
-        uploadTask.addOnSuccessListener(taskSnapshot -> {
-            imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                String imageUrl = uri.toString();
-
-                // Registrar usuario en Firebase Authentication y Realtime Database
-                firebaseUsuarios.addRegistroCuenta(id, nombre, email, fechaIngreso, password, imageUrl, genero, tipo,
-                        new FirebaseUsuarios.OnRegistroCompleteListener() {
-                            @Override
-                            public void onRegistroComplete(boolean success) {
-                                Toast.makeText(SingUp.this, "Registro exitoso", Toast.LENGTH_SHORT).show();
-                                Intent intent = new Intent(SingUp.this, LogIn.class);
-                                startActivity(intent);
-                                finish(); // Cierra la actividad de registro
-                            }
-
-                            @Override
-                            public void onRegistroError(Exception e) {
-                                Toast.makeText(SingUp.this, "Error al registrar: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                            }
-                        });
-            });
-        }).addOnFailureListener(exception -> {
-            Toast.makeText(SingUp.this, "Error al subir la imagen: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
-        });
-    }*/
-
 
     private void registerUser() {
         String idText = editTextId.getText().toString().trim();
@@ -201,77 +144,33 @@ public class SingUp extends AppCompatActivity {
 
         int id = Integer.parseInt(idText);
 
-        // Verificar si el ImageView tiene una imagen válida
-        if (imageViewFoto.getDrawable() == null || !(imageViewFoto.getDrawable() instanceof BitmapDrawable)) {
-            // Si no hay imagen, registrar sin imagen (o puedes mostrar un mensaje al usuario)
+        String imageBase64 = "";
+        if (imageViewFoto.getDrawable() != null && imageViewFoto.getDrawable() instanceof BitmapDrawable) {
+            Bitmap bitmap = ((BitmapDrawable) imageViewFoto.getDrawable()).getBitmap();
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
+            byte[] data = baos.toByteArray();
+            imageBase64 = Base64.encodeToString(data, Base64.DEFAULT);
+        } else {
             Toast.makeText(this, "No se seleccionó una imagen. Registrando sin imagen...", Toast.LENGTH_SHORT).show();
-            firebaseUsuarios.addRegistroCuenta(id, nombre, email, fechaIngreso, password, "", genero, tipo,
-                    new FirebaseUsuarios.OnRegistroCompleteListener() {
-                        @Override
-                        public void onRegistroComplete(boolean success) {
-                            Toast.makeText(SingUp.this, "Registro exitoso", Toast.LENGTH_SHORT).show();
-                            Intent intent = new Intent(SingUp.this, LogIn.class);
-                            startActivity(intent);
-                            finish();
-                        }
-
-                        @Override
-                        public void onRegistroError(Exception e) {
-                            Toast.makeText(SingUp.this, "Error al registrar: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                        }
-                    });
-            return;
         }
 
-        // Si hay imagen, proceder con la subida
-        Bitmap bitmap = ((BitmapDrawable) imageViewFoto.getDrawable()).getBitmap();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
-        byte[] data = baos.toByteArray();
+        firebaseUsuarios.addRegistroCuenta(id, nombre, email, fechaIngreso, password, imageBase64, genero, tipo,
+                new FirebaseUsuarios.OnRegistroCompleteListener() {
+                    @Override
+                    public void onRegistroComplete(boolean success) {
+                        Toast.makeText(SingUp.this, "Registro exitoso", Toast.LENGTH_SHORT).show();
+                        Intent intent = new Intent(SingUp.this, LogIn.class);
+                        startActivity(intent);
+                        finish();
+                    }
 
-        // Subir imagen a Firebase Storage
-        FirebaseStorage storage = FirebaseStorage.getInstance();
-        StorageReference storageRef = storage.getReference();
-        String imagePath = "images/" + UUID.randomUUID().toString() + ".jpg";
-        StorageReference imageRef = storageRef.child(imagePath);
-
-        UploadTask uploadTask = imageRef.putBytes(data);
-        uploadTask.addOnSuccessListener(taskSnapshot -> {
-            imageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                String imageUrl = uri.toString();
-
-                // Registrar usuario en Firebase Authentication y Realtime Database
-                firebaseUsuarios.addRegistroCuenta(id, nombre, email, fechaIngreso, password, imageUrl, genero, tipo,
-                        new FirebaseUsuarios.OnRegistroCompleteListener() {
-                            @Override
-                            public void onRegistroComplete(boolean success) {
-                                Toast.makeText(SingUp.this, "Registro exitoso", Toast.LENGTH_SHORT).show();
-                                Intent intent = new Intent(SingUp.this, LogIn.class);
-                                startActivity(intent);
-                                finish();
-                            }
-
-                            @Override
-                            public void onRegistroError(Exception e) {
-                                Toast.makeText(SingUp.this, "Error al registrar: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                            }
-                        });
-            }).addOnFailureListener(exception -> {
-                Toast.makeText(SingUp.this, "Error al obtener URL de la imagen: " + exception.getMessage(), Toast.LENGTH_LONG).show();
-            });
-        }).addOnFailureListener(exception -> {
-            Toast.makeText(SingUp.this, "Error al subir la imagen: " + exception.getMessage(), Toast.LENGTH_LONG).show();
-        });
+                    @Override
+                    public void onRegistroError(Exception e) {
+                        Toast.makeText(SingUp.this, "Error al registrar: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    }
+                });
     }
-
-
-
-
-
-
-
-
-
 
     @SuppressLint("QueryPermissionsNeeded")
     private void captureImage() {

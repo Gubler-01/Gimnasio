@@ -29,23 +29,19 @@ public class LogIn extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_log_in);
 
-        // Inicializa Firebase Auth y FirebaseUsuarios
         mAuth = FirebaseAuth.getInstance();
         firebaseUsuarios = new FirebaseUsuarios(this);
 
-        // Vincula los elementos de la UI
         editTextEmail = findViewById(R.id.usernameEditText);
         editTextPassword = findViewById(R.id.passwordEditText);
         loginButton = findViewById(R.id.loginButton);
         signUpButton = findViewById(R.id.signUpButton);
 
-        // Botón de registrarse
         signUpButton.setOnClickListener(v -> {
             Intent intent = new Intent(LogIn.this, SingUp.class);
             startActivity(intent);
         });
 
-        // Botón de login
         loginButton.setOnClickListener(v -> {
             String email = editTextEmail.getText().toString().trim();
             String password = editTextPassword.getText().toString().trim();
@@ -59,28 +55,31 @@ public class LogIn extends AppCompatActivity {
     }
 
     private void loginUser(String email, String password) {
-        // Primero autenticamos con Firebase Authentication
         mAuth.signInWithEmailAndPassword(email, password)
                 .addOnCompleteListener(this, task -> {
                     if (task.isSuccessful()) {
-                        // Si la autenticación es exitosa, buscamos datos adicionales en Realtime Database
+                        Log.d("LoginDebug", "Autenticación exitosa con Firebase Auth");
                         firebaseUsuarios.getRegistroCuenta(email, new FirebaseUsuarios.OnUsuariosFoundListener() {
                             @Override
                             public void onUsuariosFound(List<Usuarios> usuarios) {
-                                usr = usuarios.get(0); // Guardamos el usuario encontrado
+                                Log.d("LoginDebug", "Usuario encontrado en Realtime Database");
+                                usr = usuarios.get(0);
                                 Intent intent;
                                 if ("Admin".equals(usr.getTipo())) {
                                     intent = new Intent(LogIn.this, MainActivity.class);
+                                    Log.d("LoginDebug", "Navegando a MainActivity (Admin)");
                                 } else {
                                     intent = new Intent(LogIn.this, Usuario.class);
+                                    Log.d("LoginDebug", "Navegando a Usuario");
                                 }
-                                startActivity(intent);
-                                finish(); // Cierra la actividad de login
                                 Toast.makeText(LogIn.this, "Inicio de sesión exitoso", Toast.LENGTH_SHORT).show();
+                                startActivity(intent);
+                                finish();
                             }
 
                             @Override
                             public void onUsuariosNotFound() {
+                                Log.d("LoginDebug", "Usuario no encontrado en Realtime Database");
                                 Toast.makeText(LogIn.this, "Usuario no encontrado en la base de datos", Toast.LENGTH_LONG).show();
                                 editTextEmail.setText("");
                                 editTextPassword.setText("");
@@ -88,12 +87,14 @@ public class LogIn extends AppCompatActivity {
 
                             @Override
                             public void onError(Exception e) {
+                                Log.e("LoginDebug", "Error al buscar usuario: " + e.getMessage());
                                 Toast.makeText(LogIn.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
                                 editTextEmail.setText("");
                                 editTextPassword.setText("");
                             }
                         });
                     } else {
+                        Log.e("LoginDebug", "Error de autenticación: " + task.getException().getMessage());
                         Toast.makeText(LogIn.this, "Error: " + task.getException().getMessage(), Toast.LENGTH_LONG).show();
                         editTextEmail.setText("");
                         editTextPassword.setText("");
@@ -101,12 +102,12 @@ public class LogIn extends AppCompatActivity {
                 });
     }
 
-    // Opcional: Verifica si el usuario ya está logueado al iniciar
     @Override
     protected void onStart() {
         super.onStart();
         FirebaseUser currentUser = mAuth.getCurrentUser();
         if (currentUser != null) {
+            Log.d("LoginDebug", "Usuario ya autenticado: " + currentUser.getEmail());
             firebaseUsuarios.getRegistroCuenta(currentUser.getEmail(), new FirebaseUsuarios.OnUsuariosFoundListener() {
                 @Override
                 public void onUsuariosFound(List<Usuarios> usuarios) {
@@ -114,8 +115,10 @@ public class LogIn extends AppCompatActivity {
                     Intent intent;
                     if ("Admin".equals(usr.getTipo())) {
                         intent = new Intent(LogIn.this, MainActivity.class);
+                        Log.d("LoginDebug", "Redirigiendo a MainActivity desde onStart (Admin)");
                     } else {
                         intent = new Intent(LogIn.this, Usuario.class);
+                        Log.d("LoginDebug", "Redirigiendo a Usuario desde onStart");
                     }
                     startActivity(intent);
                     finish();
@@ -123,14 +126,16 @@ public class LogIn extends AppCompatActivity {
 
                 @Override
                 public void onUsuariosNotFound() {
-                    // No hacemos nada, dejamos que el usuario inicie sesión manualmente
+                    Log.d("LoginDebug", "Usuario autenticado pero no encontrado en DB");
                 }
 
                 @Override
                 public void onError(Exception e) {
-                    Log.e("AuthError", "Error al verificar usuario logueado", e);
+                    Log.e("LoginDebug", "Error al verificar usuario logueado: " + e.getMessage());
                 }
             });
+        } else {
+            Log.d("LoginDebug", "No hay usuario autenticado al iniciar");
         }
     }
 }

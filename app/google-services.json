@@ -1,21 +1,22 @@
 {
   "project_info": {
-    "project_number": "468760816328",
-    "project_id": "gymtec-e0f10",
-    "storage_bucket": "gymtec-e0f10.firebasestorage.app"
+    "project_number": "270216843886",
+    "firebase_url": "https://gimnasio-c126f-default-rtdb.firebaseio.com",
+    "project_id": "gimnasio-c126f",
+    "storage_bucket": "gimnasio-c126f.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:468760816328:android:26267e41b04f0854dd13fd",
+        "mobilesdk_app_id": "1:270216843886:android:19c0e9dec56ad3ec464c7f",
         "android_client_info": {
-          "package_name": "com.example.proyectosegundoparcial"
+          "package_name": "com.example.gimnasio"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBUH0IL3ecYA1E-nfCvTz26huG_j0pGTLs"
+          "current_key": "AIzaSyCv1Y9gsQpU00SCsYf2wQBiER2Kv2YrVL8"
         }
       ],
       "services": {

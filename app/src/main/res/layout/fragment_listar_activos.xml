@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.listaractivos.ListarActivosFragment"
+    android:background="#F5F5F5">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:layout_margin="20dp">
+
+            <!-- Encabezado de Listado -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/menu_listarvigentes"
+                android:textColor="#001E2C"
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:gravity="center"
+                android:paddingBottom="12dp"/>
+
+            <!-- Lista de Cuentas -->
+            <ListView
+                android:id="@+id/listaCuenta"
+                android:layout_width="match_parent"
+                android:layout_height="500dp"
+                android:divider="@android:color/darker_gray"
+                android:dividerHeight="1dp"
+                android:background="#001E2C"
+                android:padding="8dp"
+                android:smoothScrollbar="true"
+                android:elevation="2dp"
+                android:layout_marginTop="8dp"/>
+            <fragment
+                android:id="@+id/id_mapDialogo"
+                android:name="com.google.android.gms.maps.SupportMapFragment"
+                android:layout_width="match_parent"
+                android:layout_height="250dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp" />
+
+
+        </LinearLayout>
+    </ScrollView>
+</FrameLayout>

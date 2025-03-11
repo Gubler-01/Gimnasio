@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".ui.crear.CrearFragment">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="16dp"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Campo de ID -->
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:id="@+id/idCrear"
+                android:hint="@string/id"
+                android:backgroundTint="#B0BEC5"
+                android:padding="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Nombre -->
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:id="@+id/nombreCrear"
+                android:hint="@string/nombre"
+                android:backgroundTint="#B0BEC5"
+                android:padding="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Teléfono -->
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:id="@+id/telefonoCrear"
+                android:hint="@string/telefono"
+                android:backgroundTint="#B0BEC5"
+                android:padding="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Email -->
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:id="@+id/emailCrear"
+                android:hint="@string/email"
+                android:backgroundTint="#B0BEC5"
+                android:padding="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Coordenadas -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:id="@+id/latitudCrear"
+                android:hint="@string/latitud"
+                android:backgroundTint="#B0BEC5"
+                android:padding="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:id="@+id/longitudCrear"
+                android:hint="@string/longitud"
+                android:backgroundTint="#B0BEC5"
+                android:padding="12dp"
+                android:layout_marginBottom="12dp"/>
+
+            <!-- Mapa -->
+            <fragment
+                android:id="@+id/id_map"
+                android:name="com.google.android.gms.maps.SupportMapFragment"
+                android:layout_width="match_parent"
+                android:layout_height="250dp"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- Fecha de ingreso -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="12dp">
+
+                <EditText
+                    android:layout_width="0dp"
+                    android:layout_height="50dp"
+                    android:layout_weight="1"
+                    android:id="@+id/fechaCrear"
+                    android:hint="@string/fechaIngreso"
+                    android:backgroundTint="#B0BEC5"
+                    android:padding="12dp" />
+
+                <ImageButton
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:id="@+id/fechaSelectCrear"
+                    android:contentDescription="@string/fechaIngreso"
+                    android:src="@drawable/ic_calendar"
+                    android:layout_marginStart="8dp"/>
+            </LinearLayout>
+
+            <!-- costo -->
+            <EditText
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:id="@+id/costoCrear"
+                android:hint="@string/costo"
+                android:backgroundTint="#B0BEC5"
+                android:padding="12dp"
+                android:layout_marginBottom="12dp"/>
+
+
+            <!-- Imagen -->
+            <ImageView
+                android:id="@+id/imagenCrear"
+                android:layout_width="match_parent"
+                android:layout_height="300dp"
+                android:scaleType="centerCrop"
+                android:contentDescription="Imagen seleccionada"
+                android:src="@drawable/ic_menu_camera"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/buttonSelectImageCrear"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Seleccionar Imagen"
+                android:backgroundTint="#001E2C"
+                android:textColor="#FFFFFF"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Video -->
+            <VideoView
+                android:id="@+id/videoViewCrear"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="8dp" />
+
+            <Button
+                android:id="@+id/buttonSelectVideoCrear"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Seleccionar Video"
+                android:backgroundTint="#001E2C"
+                android:textColor="#FFFFFF"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Botones de acción -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginTop="16dp">
+
+                <Button
+                    android:id="@+id/btnLimpiarCrear"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/limpiar"
+                    android:backgroundTint="#001E2C"
+                    android:textColor="#FFFFFF"
+                    android:layout_margin="4dp" />
+
+                <Button
+                    android:id="@+id/btnCrear"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/menu_crear"
+                    android:backgroundTint="#001E2C"
+                    android:textColor="#FFFFFF"
+                    android:layout_margin="4dp" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </ScrollView>
+</FrameLayout>

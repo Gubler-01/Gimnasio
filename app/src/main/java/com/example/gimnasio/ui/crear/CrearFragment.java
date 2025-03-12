@@ -2,12 +2,8 @@ package com.example.gimnasio.ui.crear;
 
 import static android.app.Activity.RESULT_OK;
 
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-import androidx.lifecycle.ViewModelProvider;
-
+import android.Manifest;
 import android.annotation.SuppressLint;
-import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -15,13 +11,8 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
-import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -35,11 +26,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
 
-import android.Manifest;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import com.example.gimnasio.LogIn;
 import com.example.gimnasio.R;
-import com.example.gimnasio.databinding.FragmentCrearBinding;
 import com.example.gimnasio.db.FirebaseGimnasios;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -47,42 +42,27 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.io.InputStream;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
-public class CrearFragment extends Fragment implements View.OnClickListener, DatePickerDialog.OnDateSetListener, OnMapReadyCallback, ActivityCompat.OnRequestPermissionsResultCallback {
+public class CrearFragment extends Fragment implements View.OnClickListener, DatePickerDialog.OnDateSetListener, OnMapReadyCallback {
 
     private CrearViewModel mViewModel;
-    private EditText editTextId, editTextNombre, editTextEmail,editTextTelefono, editTextDate,editTextCosto;
+    private EditText editTextId, editTextNombre, editTextEmail, editTextTelefono, editTextDate, editTextCosto;
     private ImageView imageViewFoto;
-    private TextView textViewLatitud,textViewLongitud;
+    private TextView textViewLatitud, textViewLongitud;
     private VideoView videoView;
     private ImageButton imageButtonCalendario;
-    private Button btnLimpiar, btnCrear,btnFoto,btnVideo;
-    private FragmentCrearBinding binding;
-    private String a = "", d = "", sex = "";
-    private Calendar c;
-    private static int anio, mes, dia;
-    private DatePickerDialog datePickerDialog;
-    public FirebaseGimnasios firebaseGimnasios;
+    private Button btnLimpiar, btnCrear, btnFoto, btnVideo;
+    private FirebaseGimnasios firebaseGimnasios;
     private GoogleMap mMap;
+    private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_VIDEO_CAPTURE = 2;
-    private Uri videoUri;
-    private String imageUrl, videoUrl;
     private static final int PERMISSION_REQUEST_CODE = 100;
-    private int id;
+    private Uri videoUri;
+
     public static CrearFragment newInstance() {
         return new CrearFragment();
     }
@@ -97,11 +77,12 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
         if (mapFragment != null) {
             mapFragment.getMapAsync(this);
         } else {
-            // Maneja el caso donde mapFragment es null
+            Toast.makeText(getContext(), "Error: MapFragment no encontrado", Toast.LENGTH_LONG).show();
             Log.e("CrearFragment", "El fragmento de mapa es null");
         }
         return root;
     }
+
     private void componentes(View root) {
         editTextComponentes(root);
         botonComponentes(root);
@@ -130,10 +111,8 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
         btnLimpiar.setOnClickListener(this);
         btnCrear.setOnClickListener(this);
         btnFoto.setOnClickListener(this);
-        imageViewFoto.setOnClickListener(this);
         imageButtonCalendario.setOnClickListener(this);
     }
-
 
     @Override
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
@@ -144,7 +123,6 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        binding = null;
     }
 
     @SuppressLint("NonConstantResourceId")
@@ -156,8 +134,10 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
             if (editTextNombre.getText().toString().isEmpty() ||
                     editTextEmail.getText().toString().isEmpty() ||
                     editTextId.getText().toString().isEmpty() ||
-                    editTextDate.getText().toString().isEmpty()) {
-                Toast.makeText(getContext(), "Ingrese la información solicitada", Toast.LENGTH_LONG).show();
+                    editTextDate.getText().toString().isEmpty() ||
+                    textViewLatitud.getText().toString().isEmpty() ||
+                    textViewLongitud.getText().toString().isEmpty()) {
+                Toast.makeText(getContext(), "Ingrese toda la información solicitada, incluyendo la ubicación", Toast.LENGTH_LONG).show();
             } else {
                 try {
                     int id = Integer.parseInt(editTextId.getText().toString());
@@ -168,143 +148,145 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
                     String latitud = textViewLatitud.getText().toString();
                     String longitud = textViewLongitud.getText().toString();
                     String costo = editTextCosto.getText().toString();
-                    FirebaseStorage storage = FirebaseStorage.getInstance();
-                    StorageReference storageRef = storage.getReference();
 
-                    // Subir la imagen
-                    Bitmap bitmap = ((BitmapDrawable) imageViewFoto.getDrawable()).getBitmap();
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, baos);
-                    byte[] imageData = baos.toByteArray();
+                    // Convertir imagen a Base64
+                    String imageBase64 = "";
+                    if (imageViewFoto.getDrawable() != null && imageViewFoto.getDrawable() instanceof BitmapDrawable) {
+                        Bitmap bitmap = ((BitmapDrawable) imageViewFoto.getDrawable()).getBitmap();
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos); // Compresión al 50%
+                        byte[] imageData = baos.toByteArray();
+                        imageBase64 = Base64.encodeToString(imageData, Base64.DEFAULT);
+                        Log.d("CrearFragment", "Tamaño de imagen Base64: " + imageBase64.length() + " caracteres");
+                    }
 
-                    String imagePath = "images/" + UUID.randomUUID().toString() + ".jpg";
-                    StorageReference imageRef = storageRef.child(imagePath);
-
-                    UploadTask imageUploadTask = imageRef.putBytes(imageData);
-                    imageUploadTask.addOnSuccessListener(taskSnapshot -> {
-                        imageRef.getDownloadUrl().addOnSuccessListener(imageUri -> {
-                            imageUrl = imageUri.toString();
-
-                            if (videoUri != null) {
-                                String videoPath = "videos/" + UUID.randomUUID().toString() + ".mp4";
-                                StorageReference videoRef = storageRef.child(videoPath);
-
-                                UploadTask videoUploadTask = videoRef.putFile(videoUri);
-                                videoUploadTask.addOnSuccessListener(taskSnapshot2 -> {
-                                    videoRef.getDownloadUrl().addOnSuccessListener(videoUri2 -> {
-                                        videoUrl = videoUri2.toString();
-
-                                        // Llama al método para guardar URLs en Firestore
-                                        firebaseGimnasios.addRegistroGimnasio(id, nombre, email, fecha, costo, imageUrl, videoUrl, telefono, latitud, longitud, LogIn.usr.getId());
-                                        guardarUrlEnFirestore(imageUrl, videoUrl);
-
-                                        Toast.makeText(getContext(), "Agregado con exito", Toast.LENGTH_SHORT).show();
-                                        limpiar();
-                                    });
-                                }).addOnFailureListener(exception -> {
-                                    Toast.makeText(getContext(), "Error al subir el video: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
-                                });
+                    // Convertir video a Base64
+                    String videoBase64 = "";
+                    if (videoUri != null) {
+                        try {
+                            InputStream inputStream = getContext().getContentResolver().openInputStream(videoUri);
+                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                            byte[] buffer = new byte[1024];
+                            int bytesRead;
+                            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                                baos.write(buffer, 0, bytesRead);
                             }
-                        });
-                    }).addOnFailureListener(exception -> {
-                        Toast.makeText(getContext(), "Error al subir la imagen: " + exception.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
+                            byte[] videoData = baos.toByteArray();
+                            videoBase64 = Base64.encodeToString(videoData, Base64.DEFAULT);
+                            inputStream.close();
+                            Log.d("CrearFragment", "Tamaño de video Base64: " + videoBase64.length() + " caracteres");
+                            // Verificar tamaño (aproximado en MB)
+                            double videoSizeMB = (videoBase64.length() * 0.75) / (1024 * 1024); // Base64 aumenta ~33%, ajustamos
+                            if (videoSizeMB > 10) {
+                                Toast.makeText(getContext(), "El video es demasiado grande (" + String.format("%.2f", videoSizeMB) + " MB). Use un video más corto (máx. 3 segundos).", Toast.LENGTH_LONG).show();
+                                return;
+                            }
+                        } catch (Exception e) {
+                            Toast.makeText(getContext(), "Error al procesar el video: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                            Log.e("CrearFragment", "Error al procesar video: ", e);
+                            return;
+                        }
+                    }
 
+                    // Guardar en Realtime Database con callback
+                    firebaseGimnasios.addRegistroGimnasio(id, nombre, email, fecha, costo, imageBase64, videoBase64, telefono, latitud, longitud, LogIn.usr.getId(),
+                            new FirebaseGimnasios.OnRegistroCompleteListener() {
+                                @Override
+                                public void onRegistroComplete(boolean success) {
+                                    Toast.makeText(getContext(), "Agregado con éxito", Toast.LENGTH_SHORT).show();
+                                    limpiar();
+                                }
 
+                                @Override
+                                public void onRegistroError(Exception e) {
+                                    Toast.makeText(getContext(), "Error al agregar: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    Log.e("CrearFragment", "Error al guardar en Firebase: ", e);
+                                }
+                            });
 
-
-                }catch (Exception e){
-                    Toast.makeText(getContext(), e.toString(), Toast.LENGTH_LONG).show();
-                    Log.d("exception",e.toString());
+                } catch (Exception e) {
+                    Toast.makeText(getContext(), "Error: " + e.toString(), Toast.LENGTH_LONG).show();
+                    Log.e("CrearFragment", "Error general: ", e);
                 }
             }
         } else if (view.getId() == R.id.fechaSelectCrear) {
-            c = Calendar.getInstance();
-            anio = c.get(Calendar.YEAR);
-            mes = c.get(Calendar.MONTH);
-            dia = c.get(Calendar.DAY_OF_MONTH);
-            datePickerDialog = new DatePickerDialog(getContext(), this, anio, mes, dia);
-            datePickerDialog.show();
+            Calendar c = Calendar.getInstance();
+            int anio = c.get(Calendar.YEAR);
+            int mes = c.get(Calendar.MONTH);
+            int dia = c.get(Calendar.DAY_OF_MONTH);
+            new DatePickerDialog(getContext(), this, anio, mes, dia).show();
         } else if (view.getId() == R.id.buttonSelectImageCrear) {
-            mCaptura(view);
-
+            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CODE);
+            } else {
+                mCaptura(view);
+            }
         } else if (view.getId() == R.id.buttonSelectVideoCrear) {
-            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.CAMERA)
-                    != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions((Activity) getContext(),
-                        new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CODE);
+            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CODE);
             } else {
                 recordVideo();
             }
         }
-
     }
 
-    static  final int REQUEST_IMAGE_CAPTURE =1;
     @SuppressLint("QueryPermissionsNeeded")
-    @Deprecated
-    public void mCaptura(View v){
-        Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (pictureIntent.resolveActivity(getContext().getPackageManager())!= null){
-            startActivityForResult(pictureIntent,REQUEST_IMAGE_CAPTURE);
+    public void mCaptura(View v) {
+        try {
+            Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            if (pictureIntent.resolveActivity(getContext().getPackageManager()) != null) {
+                startActivityForResult(pictureIntent, REQUEST_IMAGE_CAPTURE);
+            } else {
+                Toast.makeText(getContext(), "No se puede abrir la cámara", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "Error al abrir la cámara: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("CrearFragment", "Error al iniciar captura de imagen: ", e);
         }
     }
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data){
-        super.onActivityResult(requestCode,resultCode,data);
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK){
-            Bundle extras = data.getExtras();
-            Bitmap imageBitmap = (Bitmap) extras.get("data");
-            imageViewFoto.setImageBitmap(imageBitmap);
-            try {
-                createImageFile();
-                galleryAddpic();
-            }catch(Exception ex) {
-                ex.printStackTrace();
-                Toast.makeText(getContext(), "Fallo del Activity", Toast.LENGTH_LONG).show();
 
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            try {
+                if (data != null && data.getExtras() != null) {
+                    Bitmap imageBitmap = (Bitmap) data.getExtras().get("data");
+                    if (imageBitmap != null) {
+                        imageViewFoto.setImageBitmap(imageBitmap);
+                        Log.d("CrearFragment", "Imagen capturada correctamente");
+                    } else {
+                        Toast.makeText(getContext(), "No se pudo obtener la imagen", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(getContext(), "Error: Datos de imagen no disponibles", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "Error al procesar la imagen: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("CrearFragment", "Error al procesar imagen: ", e);
             }
         } else if (requestCode == REQUEST_VIDEO_CAPTURE && resultCode == RESULT_OK) {
-            videoUri = data.getData();
-            videoView.setVideoURI(videoUri);
-            videoView.start();
-        }else if (resultCode != RESULT_OK) {
+            try {
+                if (data != null) {
+                    videoUri = data.getData();
+                    if (videoUri != null) {
+                        videoView.setVideoURI(videoUri);
+                        videoView.start();
+                        Log.d("CrearFragment", "Video capturado: " + videoUri.toString());
+                    } else {
+                        Toast.makeText(getContext(), "No se pudo obtener el video", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(getContext(), "Error: Datos de video no disponibles", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "Error al procesar el video: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("CrearFragment", "Error al procesar video: ", e);
+            }
+        } else if (resultCode != RESULT_OK) {
             Toast.makeText(getContext(), "Error al capturar la imagen o video", Toast.LENGTH_SHORT).show();
+            Log.e("CrearFragment", "onActivityResult: Resultado no OK, código: " + resultCode);
         }
-
-
-    }
-
-    String photoPath;
-    private File createImageFile() throws IOException {
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFilename = "REPA_" + timeStamp + "_";
-        File storageDir = getContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(imageFilename, ".jpg", storageDir);
-        photoPath = image.getAbsolutePath();
-        Toast.makeText(getContext(), photoPath, Toast.LENGTH_LONG).show();
-        return image;
-    }
-
-    private void galleryAddpic(){
-        Intent mediaIntent= new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        File savef = new File(photoPath);
-        Uri content = Uri.fromFile(savef);
-        mediaIntent.setData(content);
-        getContext().sendBroadcast(mediaIntent);
-    }
-    public void guardarUrlEnFirestore(String imagenUrl,String videoUrl) {
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-        Map<String, Object> registro = new HashMap<>();
-        registro.put("imagenUrl", imagenUrl);  // Guardar la URL de descarga
-        registro.put("videoUrl", videoUrl);
-        db.collection("Gimnasios").add(registro)
-                .addOnSuccessListener(documentReference -> {
-                    Toast.makeText(getContext(), "Imagen y video guardados exitosamente", Toast.LENGTH_SHORT).show();
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(getContext(), "Error al guardar los datos: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
     }
 
     private void limpiar() {
@@ -320,6 +302,7 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
         mMap.clear();
         textViewLatitud.setText("");
         textViewLongitud.setText("");
+        videoUri = null; // Resetear el Uri del video
     }
 
     @SuppressLint("SetTextI18n")
@@ -331,41 +314,44 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
+        // Habilitar interacción con el mapa
+        mMap.getUiSettings().setZoomControlsEnabled(true);
+        mMap.getUiSettings().setZoomGesturesEnabled(true);
+        mMap.getUiSettings().setScrollGesturesEnabled(true);
+
         LatLng toluca = new LatLng(19.2826, -99.6557);
-        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(toluca, 15));
-        mMap.setOnMapLongClickListener(new GoogleMap.OnMapLongClickListener() {
-
-            @Override
-            public void onMapLongClick(LatLng latLng) {
-                double latitud = latLng.latitude;
-                double longitud = latLng.longitude;
-                textViewLatitud.setText(String.valueOf(latitud));
-                textViewLongitud.setText(String.valueOf(longitud));
-
-                mMap.clear();
-                mMap.addMarker(new MarkerOptions().position(latLng).title("Ubicación seleccionada"));
-            }
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(toluca, 15));
+        mMap.setOnMapLongClickListener(latLng -> {
+            double latitud = latLng.latitude;
+            double longitud = latLng.longitude;
+            textViewLatitud.setText(String.valueOf(latitud));
+            textViewLongitud.setText(String.valueOf(longitud));
+            mMap.clear();
+            mMap.addMarker(new MarkerOptions().position(latLng).title("Ubicación seleccionada"));
+            Log.d("MapClick", "Latitud: " + latitud + ", Longitud: " + longitud);
         });
-
-
     }
+
     private void recordVideo() {
         Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+        takeVideoIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 3); // Reducir a 3 segundos para evitar problemas de tamaño
         if (takeVideoIntent.resolveActivity(getContext().getPackageManager()) != null) {
             startActivityForResult(takeVideoIntent, REQUEST_VIDEO_CAPTURE);
+        } else {
+            Toast.makeText(getContext(), "No se puede abrir la cámara para video", Toast.LENGTH_SHORT).show();
         }
     }
 
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        if (requestCode == REQUEST_VIDEO_CAPTURE) {
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                recordVideo();
+                // Permiso concedido, permitir captura de imagen o video
+                Toast.makeText(getContext(), "Permiso concedido", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(getContext(), "Permiso de cámara denegado", Toast.LENGTH_SHORT).show();
             }
         }
     }
-
-
-
-
 }

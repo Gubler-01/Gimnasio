@@ -14,6 +14,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Base64;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -80,6 +81,7 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
             mapFragment.getMapAsync(this);
         } else {
             Toast.makeText(getContext(), "Error: MapFragment no encontrado", Toast.LENGTH_LONG).show();
+            Log.e("EditarFragment", "El fragmento de mapa es null");
         }
         componentes(root);
         return root;
@@ -133,8 +135,10 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
             if (editTextNombre.getText().toString().isEmpty() ||
                     editTextEmail.getText().toString().isEmpty() ||
                     editTextId.getText().toString().isEmpty() ||
-                    editTextDate.getText().toString().isEmpty()) {
-                Toast.makeText(getContext(), "Ingrese la información solicitada", Toast.LENGTH_LONG).show();
+                    editTextDate.getText().toString().isEmpty() ||
+                    textViewLatitud.getText().toString().isEmpty() ||
+                    textViewLongitud.getText().toString().isEmpty()) {
+                Toast.makeText(getContext(), "Ingrese toda la información solicitada, incluyendo la ubicación", Toast.LENGTH_LONG).show();
             } else {
                 try {
                     int id = Integer.parseInt(editTextId.getText().toString());
@@ -157,39 +161,61 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
                                 bitmap.compress(Bitmap.CompressFormat.JPEG, 50, baos);
                                 byte[] imageData = baos.toByteArray();
                                 imageBase64 = Base64.encodeToString(imageData, Base64.DEFAULT);
+                                Log.d("EditarFragment", "Tamaño de imagen Base64: " + imageBase64.length() + " caracteres");
                             }
 
                             // Convertir video a Base64
-                            String videoBase64 = gimnasios.getVideo(); // Mantener el existente si no se cambia
+                            final String[] videoBase64 = {gimnasios.getVideo()}; // Mantener el existente si no se cambia
                             if (videoUri != null) {
                                 try {
                                     InputStream inputStream = getContext().getContentResolver().openInputStream(videoUri);
-                                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                                    byte[] buffer = new byte[1024];
-                                    int bytesRead;
-                                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                                        baos.write(buffer, 0, bytesRead);
+                                    if (inputStream != null) {
+                                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                                        byte[] buffer = new byte[1024];
+                                        int bytesRead;
+                                        while ((bytesRead = inputStream.read(buffer)) != -1) {
+                                            baos.write(buffer, 0, bytesRead);
+                                        }
+                                        inputStream.close();
+                                        byte[] videoData = baos.toByteArray();
+                                        videoBase64[0] = Base64.encodeToString(videoData, Base64.DEFAULT);
+                                        Log.d("EditarFragment", "Tamaño de video Base64: " + videoBase64[0].length() + " caracteres");
+                                        // Verificar tamaño (aproximado en MB)
+                                        double videoSizeMB = (videoBase64[0].length() * 0.75) / (1024 * 1024); // Base64 aumenta ~33%, ajustamos
+                                        if (videoSizeMB > 10) {
+                                            Toast.makeText(getContext(), "El video es demasiado grande (" + String.format("%.2f", videoSizeMB) + " MB). Use un video más corto (máx. 3 segundos).", Toast.LENGTH_LONG).show();
+                                            return;
+                                        }
+                                    } else {
+                                        Log.w("EditarFragment", "InputStream de videoUri es null");
+                                        Toast.makeText(getContext(), "Error: No se pudo leer el video", Toast.LENGTH_LONG).show();
+                                        return;
                                     }
-                                    byte[] videoData = baos.toByteArray();
-                                    videoBase64 = Base64.encodeToString(videoData, Base64.DEFAULT);
-                                    inputStream.close();
                                 } catch (Exception e) {
-                                    Toast.makeText(getContext(), "Error al leer el video: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    Toast.makeText(getContext(), "Error al procesar el video: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    Log.e("EditarFragment", "Error al procesar video: ", e);
+                                    return;
                                 }
                             }
 
                             // Actualizar en Realtime Database con callback
-                            firebaseGimnasios.updateRegistroGimnasio(gimnasios, nombre, email, fecha, costo, imageBase64, videoBase64, telefono, latitud, longitud,
+                            firebaseGimnasios.updateRegistroGimnasio(gimnasios, nombre, email, fecha, costo, imageBase64, videoBase64[0], telefono, latitud, longitud,
                                     new FirebaseGimnasios.OnRegistroCompleteListener() {
                                         @Override
                                         public void onRegistroComplete(boolean success) {
-                                            Toast.makeText(getContext(), "Editado con éxito", Toast.LENGTH_SHORT).show();
-                                            limpiar();
+                                            if (success) {
+                                                Toast.makeText(getContext(), "Editado con éxito", Toast.LENGTH_SHORT).show();
+                                                Log.d("EditarFragment", "Registro actualizado con éxito, incluyendo video: " + (videoBase64[0].isEmpty() ? "sin video" : "con video"));
+                                                limpiar();
+                                            } else {
+                                                Toast.makeText(getContext(), "Error: Registro no actualizado", Toast.LENGTH_LONG).show();
+                                            }
                                         }
 
                                         @Override
                                         public void onRegistroError(Exception e) {
                                             Toast.makeText(getContext(), "Error al editar: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                            Log.e("EditarFragment", "Error al guardar en Firebase: ", e);
                                         }
                                     });
                         }
@@ -206,6 +232,7 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
                     });
                 } catch (Exception e) {
                     Toast.makeText(getContext(), "Error: " + e.toString(), Toast.LENGTH_LONG).show();
+                    Log.e("EditarFragment", "Error general: ", e);
                 }
             }
         } else if (view.getId() == R.id.fechaSelectEditar) {
@@ -215,7 +242,11 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
             int dia = c.get(Calendar.DAY_OF_MONTH);
             new DatePickerDialog(getContext(), this, anio, mes, dia).show();
         } else if (view.getId() == R.id.buttonSelectImageEditar) {
-            mCaptura(view);
+            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CODE);
+            } else {
+                mCaptura(view);
+            }
         } else if (view.getId() == R.id.buttonSelectVideoEditar) {
             if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.CAMERA}, PERMISSION_REQUEST_CODE);
@@ -260,9 +291,16 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
 
     @SuppressLint("QueryPermissionsNeeded")
     public void mCaptura(View v) {
-        Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (pictureIntent.resolveActivity(getContext().getPackageManager()) != null) {
-            startActivityForResult(pictureIntent, REQUEST_IMAGE_CAPTURE);
+        try {
+            Intent pictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            if (pictureIntent.resolveActivity(getContext().getPackageManager()) != null) {
+                startActivityForResult(pictureIntent, REQUEST_IMAGE_CAPTURE);
+            } else {
+                Toast.makeText(getContext(), "No se puede abrir la cámara", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(getContext(), "Error al abrir la cámara: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e("EditarFragment", "Error al iniciar captura de imagen: ", e);
         }
     }
 
@@ -270,15 +308,43 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            Bundle extras = data.getExtras();
-            Bitmap imageBitmap = (Bitmap) extras.get("data");
-            imageViewFoto.setImageBitmap(imageBitmap);
+            try {
+                if (data != null && data.getExtras() != null) {
+                    Bitmap imageBitmap = (Bitmap) data.getExtras().get("data");
+                    if (imageBitmap != null) {
+                        imageViewFoto.setImageBitmap(imageBitmap);
+                        Log.d("EditarFragment", "Imagen capturada correctamente");
+                    } else {
+                        Toast.makeText(getContext(), "No se pudo obtener la imagen", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(getContext(), "Error: Datos de imagen no disponibles", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "Error al procesar la imagen: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("EditarFragment", "Error al procesar imagen: ", e);
+            }
         } else if (requestCode == REQUEST_VIDEO_CAPTURE && resultCode == RESULT_OK) {
-            videoUri = data.getData();
-            videoView.setVideoURI(videoUri);
-            videoView.start();
+            try {
+                if (data != null) {
+                    videoUri = data.getData();
+                    if (videoUri != null) {
+                        videoView.setVideoURI(videoUri);
+                        videoView.start();
+                        Log.d("EditarFragment", "Video capturado: " + videoUri.toString());
+                    } else {
+                        Toast.makeText(getContext(), "No se pudo obtener el video", Toast.LENGTH_SHORT).show();
+                    }
+                } else {
+                    Toast.makeText(getContext(), "Error: Datos de video no disponibles", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "Error al procesar el video: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("EditarFragment", "Error al procesar video: ", e);
+            }
         } else if (resultCode != RESULT_OK) {
             Toast.makeText(getContext(), "Error al capturar la imagen o video", Toast.LENGTH_SHORT).show();
+            Log.e("EditarFragment", "onActivityResult: Resultado no OK, código: " + resultCode);
         }
     }
 
@@ -294,8 +360,10 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
         imageViewFoto.setImageResource(R.drawable.ic_menu_camera);
         videoView.stopPlayback();
         videoView.setVideoURI(null);
+        videoView.invalidate(); // Forzar actualización de la vista
         videoUri = null;
         mMap.clear();
+        Log.d("EditarFragment", "Limpieza completada, videoUri: " + (videoUri == null ? "null" : videoUri.toString()));
     }
 
     @SuppressLint("SetTextI18n")
@@ -307,6 +375,10 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
+        mMap.getUiSettings().setZoomControlsEnabled(true);
+        mMap.getUiSettings().setZoomGesturesEnabled(true);
+        mMap.getUiSettings().setScrollGesturesEnabled(true);
+
         LatLng toluca = new LatLng(19.2826, -99.6557);
         googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(toluca, 15));
         mMap.setOnMapLongClickListener(latLng -> {
@@ -316,14 +388,18 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
             textViewLongitud.setText(String.valueOf(longitud));
             mMap.clear();
             mMap.addMarker(new MarkerOptions().position(latLng).title("Ubicación seleccionada"));
+            Log.d("MapClick", "Latitud: " + latitud + ", Longitud: " + longitud);
         });
     }
 
     private void recordVideo() {
         Intent videoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
-        videoIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 5); // Límite de 5 segundos
+        videoIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 3); // Reducir a 3 segundos para evitar problemas de tamaño
+        videoIntent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0); // Baja calidad para reducir tamaño
         if (videoIntent.resolveActivity(getContext().getPackageManager()) != null) {
             startActivityForResult(videoIntent, REQUEST_VIDEO_CAPTURE);
+        } else {
+            Toast.makeText(getContext(), "No se puede abrir la cámara para video", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -332,7 +408,7 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                recordVideo();
+                Toast.makeText(getContext(), "Permiso concedido", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(getContext(), "Permiso de cámara denegado", Toast.LENGTH_SHORT).show();
             }
@@ -364,6 +440,7 @@ public class EditarFragment extends Fragment implements View.OnClickListener, Da
                 videoView.start();
             } catch (IOException e) {
                 Toast.makeText(getContext(), "Error al cargar el video: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("EditarFragment", "Error al cargar video: ", e);
             }
         } else {
             videoView.setVideoURI(null);

@@ -161,24 +161,30 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
                     }
 
                     // Convertir video a Base64
-                    String videoBase64 = "";
+                    final String[] videoBase64 = {""}; // Usar un array para que sea "efectivamente final"
                     if (videoUri != null) {
                         try {
                             InputStream inputStream = getContext().getContentResolver().openInputStream(videoUri);
-                            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                            byte[] buffer = new byte[1024];
-                            int bytesRead;
-                            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                                baos.write(buffer, 0, bytesRead);
-                            }
-                            byte[] videoData = baos.toByteArray();
-                            videoBase64 = Base64.encodeToString(videoData, Base64.DEFAULT);
-                            inputStream.close();
-                            Log.d("CrearFragment", "Tamaño de video Base64: " + videoBase64.length() + " caracteres");
-                            // Verificar tamaño (aproximado en MB)
-                            double videoSizeMB = (videoBase64.length() * 0.75) / (1024 * 1024); // Base64 aumenta ~33%, ajustamos
-                            if (videoSizeMB > 10) {
-                                Toast.makeText(getContext(), "El video es demasiado grande (" + String.format("%.2f", videoSizeMB) + " MB). Use un video más corto (máx. 3 segundos).", Toast.LENGTH_LONG).show();
+                            if (inputStream != null) {
+                                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                                byte[] buffer = new byte[1024];
+                                int bytesRead;
+                                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                                    baos.write(buffer, 0, bytesRead);
+                                }
+                                inputStream.close();
+                                byte[] videoData = baos.toByteArray();
+                                videoBase64[0] = Base64.encodeToString(videoData, Base64.DEFAULT);
+                                Log.d("CrearFragment", "Tamaño de video Base64: " + videoBase64[0].length() + " caracteres");
+                                // Verificar tamaño (aproximado en MB)
+                                double videoSizeMB = (videoBase64[0].length() * 0.75) / (1024 * 1024); // Base64 aumenta ~33%, ajustamos
+                                if (videoSizeMB > 10) {
+                                    Toast.makeText(getContext(), "El video es demasiado grande (" + String.format("%.2f", videoSizeMB) + " MB). Use un video más corto (máx. 3 segundos).", Toast.LENGTH_LONG).show();
+                                    return;
+                                }
+                            } else {
+                                Log.w("CrearFragment", "InputStream de videoUri es null");
+                                Toast.makeText(getContext(), "Error: No se pudo leer el video", Toast.LENGTH_LONG).show();
                                 return;
                             }
                         } catch (Exception e) {
@@ -189,12 +195,17 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
                     }
 
                     // Guardar en Realtime Database con callback
-                    firebaseGimnasios.addRegistroGimnasio(id, nombre, email, fecha, costo, imageBase64, videoBase64, telefono, latitud, longitud, LogIn.usr.getId(),
+                    firebaseGimnasios.addRegistroGimnasio(id, nombre, email, fecha, costo, imageBase64, videoBase64[0], telefono, latitud, longitud, LogIn.usr.getId(),
                             new FirebaseGimnasios.OnRegistroCompleteListener() {
                                 @Override
                                 public void onRegistroComplete(boolean success) {
-                                    Toast.makeText(getContext(), "Agregado con éxito", Toast.LENGTH_SHORT).show();
-                                    limpiar();
+                                    if (success) {
+                                        Toast.makeText(getContext(), "Agregado con éxito", Toast.LENGTH_SHORT).show();
+                                        Log.d("CrearFragment", "Registro guardado con éxito, incluyendo video: " + (videoBase64[0].isEmpty() ? "sin video" : "con video"));
+                                        limpiar();
+                                    } else {
+                                        Toast.makeText(getContext(), "Error: Registro no completado", Toast.LENGTH_LONG).show();
+                                    }
                                 }
 
                                 @Override
@@ -299,10 +310,12 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
         imageViewFoto.setImageResource(R.drawable.ic_menu_camera);
         videoView.stopPlayback();
         videoView.setVideoURI(null);
+        videoView.invalidate(); // Forzar actualización de la vista
         mMap.clear();
         textViewLatitud.setText("");
         textViewLongitud.setText("");
-        videoUri = null; // Resetear el Uri del video
+        videoUri = null; // Asegurar que se restablezca correctamente
+        Log.d("CrearFragment", "Limpieza completada, videoUri: " + (videoUri == null ? "null" : videoUri.toString()));
     }
 
     @SuppressLint("SetTextI18n")
@@ -314,7 +327,6 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         mMap = googleMap;
-        // Habilitar interacción con el mapa
         mMap.getUiSettings().setZoomControlsEnabled(true);
         mMap.getUiSettings().setZoomGesturesEnabled(true);
         mMap.getUiSettings().setScrollGesturesEnabled(true);
@@ -334,7 +346,8 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
 
     private void recordVideo() {
         Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
-        takeVideoIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 3); // Reducir a 3 segundos para evitar problemas de tamaño
+        takeVideoIntent.putExtra(MediaStore.EXTRA_DURATION_LIMIT, 3); // Reducir a 3 segundos
+        takeVideoIntent.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 0); // Baja calidad para reducir tamaño
         if (takeVideoIntent.resolveActivity(getContext().getPackageManager()) != null) {
             startActivityForResult(takeVideoIntent, REQUEST_VIDEO_CAPTURE);
         } else {
@@ -347,7 +360,6 @@ public class CrearFragment extends Fragment implements View.OnClickListener, Dat
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQUEST_CODE) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // Permiso concedido, permitir captura de imagen o video
                 Toast.makeText(getContext(), "Permiso concedido", Toast.LENGTH_SHORT).show();
             } else {
                 Toast.makeText(getContext(), "Permiso de cámara denegado", Toast.LENGTH_SHORT).show();

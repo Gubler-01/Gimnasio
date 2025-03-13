@@ -3,12 +3,15 @@ package com.example.gimnasio.ui.buscar;
 import androidx.lifecycle.ViewModelProvider;
 
 import android.annotation.SuppressLint;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -152,13 +155,23 @@ public class BuscarFragment extends Fragment implements View.OnClickListener, On
     }
 
 
-    public void cargarImagenEnImageView(String url, ImageView imageView) {
-        if (getContext() != null) {
-            Glide.with(getContext())
-                    .load(url)  // Aquí va el URL de la imagen
-                    .into(imageView);  // Cargamos la imagen en el ImageView
+    public void cargarImagenEnImageView(String base64Image, ImageView imageView) {
+        if (base64Image != null && !base64Image.isEmpty()) {
+            try {
+                // Decodificar la cadena Base64 a un array de bytes
+                byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
+                // Convertir el array de bytes a un Bitmap
+                Bitmap decodedBitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                // Establecer el Bitmap en el ImageView
+                imageView.setImageBitmap(decodedBitmap);
+                Log.d("BuscarFragment", "Imagen cargada correctamente desde Base64");
+            } catch (Exception e) {
+                Toast.makeText(getContext(), "Error al cargar la imagen: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Log.e("BuscarFragment", "Error al decodificar imagen Base64: ", e);
+            }
         } else {
-            Toast.makeText(getContext(), "Error al cargar la imagen", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "No hay imagen disponible", Toast.LENGTH_SHORT).show();
+            Log.w("BuscarFragment", "La cadena Base64 está vacía o es nula");
         }
     }
 
